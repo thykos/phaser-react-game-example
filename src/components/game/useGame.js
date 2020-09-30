@@ -1,66 +1,16 @@
 import Phaser from 'phaser';
 
 
-function collectStar(player, star) {
-  star.disableBody(true, true);
-
-  //  Add and update the score
-  this.score = this.score || 0;
-  this.score = this.score + 10;
-  this.scoreText.setText('Score: ' + this.score);
-
-  if (this.stars.countActive(true) === 0) {
-    //  A new batch of stars to collect
-    this.stars.children.iterate(function (child) {
-
-      child.enableBody(true, child.x, 0, true, true);
-
-    });
-
-    const x = (this.player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
-
-    const bomb = this.bombs.create(x, 16, 'bomb');
-    bomb.setBounce(1);
-    bomb.setCollideWorldBounds(true);
-    bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
-    bomb.allowGravity = false;
-
-  }
-}
-
-function hitBomb(player, bomb) {
-  this.physics.pause();
-
-  player.setTint(0xff0000);
-
-  player.anims.play('turn');
-
-  this.gameOver = true;
-}
-
-export default class Game {
+class Scene extends Phaser.Scene {
   constructor(props) {
-    this.configs = {
-      physics: {
-        default: 'arcade',
-        arcade: {
-          gravity: {y: 300},
-          debug: false
-        }
-      },
-      scene: {
-        preload: this.#preload,
-        create: this.#create,
-        update: this.#update,
-      },
-      ...props
-    };
+    super(props);
+    this.onEnd = props.onEnd;
+    this.starsCount = props.stars;
+    this.assets = props.assets;
   }
 
-  onStart = () => new Phaser.Game(this.configs);
-
-  #preload = function () {
-    this.load.image('sky', 'assets/sky.png');
+  preload = function () {
+    this.load.image('sky', this.assets.sky);
     this.load.image('ground', 'assets/platform.png');
     this.load.image('star', 'assets/star.png');
     this.load.image('bomb', 'assets/bomb.png');
@@ -70,7 +20,7 @@ export default class Game {
     );
   };
 
-  #create = function () {
+  create = function () {
     this.add.image(400, 300, 'sky');
 
     //  The platforms group contains the ground and the 2 ledges we can jump on
@@ -119,8 +69,8 @@ export default class Game {
     //  Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
     this.stars = this.physics.add.group({
       key: 'star',
-      repeat: 11,
-      setXY: {x: 12, y: 0, stepX: 70}
+      repeat: this.starsCount - 1,
+      setXY: {x: this.starsCount + 1, y: 0, stepX: this.starsCount * 3}
     });
 
     this.stars.children.iterate(function (child) {
@@ -141,16 +91,12 @@ export default class Game {
     this.physics.add.collider(this.bombs, this.platforms);
 
     //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
-    this.physics.add.overlap(this.player, this.stars, collectStar.bind(this), null, this);
+    this.physics.add.overlap(this.player, this.stars, this.collectStar, null, this);
 
-    this.physics.add.collider(this.player, this.bombs, hitBomb.bind(this), null, this);
+    this.physics.add.collider(this.player, this.bombs, this.hitBomb, null, this);
   };
 
-  #update = function () {
-
-    if (this.gameOver) {
-      return;
-    }
+  update = function () {
 
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
@@ -175,5 +121,82 @@ export default class Game {
     if (this.cursors.down.isDown) {
       this.player.setVelocityY(660);
     }
+  };
+
+  hitBomb = function(player) {
+    this.physics.pause();
+
+    player.setTint(0xff0000);
+
+    player.anims.play('turn');
+
+    this.onEnd();
+  };
+
+  collectStar = function(player, star) {
+    star.disableBody(true, true);
+
+    //  Add and update the score
+    this.score = this.score || 0;
+    this.score = this.score + 10;
+    this.scoreText.setText('Score: ' + this.score);
+
+    if (this.stars.countActive(true) === 0) {
+      //  A new batch of stars to collect
+      this.stars.children.iterate(function (child) {
+
+        child.enableBody(true, child.x, 0, true, true);
+
+      });
+
+      const x = (this.player.x < 400) ? Phaser.Math.Between(400, 800) : Phaser.Math.Between(0, 400);
+
+      const bomb = this.bombs.create(x, 16, 'bomb');
+      bomb.setBounce(1);
+      bomb.setCollideWorldBounds(true);
+      bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+      bomb.allowGravity = false;
+    }
+  }
+}
+
+export default class Game {
+  constructor(props) {
+    this.configs = {
+      type: Phaser.CANVAS,
+      width: props.width || 800,
+      height: props.height || 600,
+      canvas: props.canvas,
+      autoStart: false,
+      physics: {
+        default: 'arcade',
+        arcade: {
+          gravity: {y: 300},
+          debug: false
+        }
+      },
+      ...props
+    };
+    const scene = new Scene({
+      assets: {
+        sky: 'assets/sky.png'
+      },
+      stars: props.stars,
+      onEnd: props.onEnd
+    });
+    this.game = new Phaser.Game(this.configs);
+    this.game.scene.add('Game', scene);
+  }
+
+  start = () => {
+    this.game.scene.start('Game');
+  };
+
+  reload = () => {
+    this.game.scene.restart();
+  };
+
+  update = () => {
+    console.log(this.game)
   };
 }
