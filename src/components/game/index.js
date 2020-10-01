@@ -3,42 +3,66 @@ import Game from './useGame';
 
 export default () => {
   const canvas = useRef(null);
-  const [ platforms, onPlatformsChange] = useState(1);
-  const [ stars, onStarsChange] = useState(12);
+  const [ stars, onStarsChange] = useState(2);
+  const [ status, onStatusChange ] = useState('greetings');
+  const [ demo, onDemoChange ] = useState(false);
   let game;
 
   useEffect(() => {
-    game = new Game({
-      canvas: canvas.current,
-      stars: stars,
-      onEnd: () => alert('the end')
-    });
-  }, [stars]);
+    if (status === 'prepare' || demo) {
+      game = new Game({
+        canvas: canvas.current,
+        stars: stars,
+        demo,
+        width: 800,
+        height: 600,
+        onLoose: () => onStatusChange('loose'),
+        onWin: () => onStatusChange('win'),
+        scoreToWin: 600,
+        scorePerStar: 30,
+        fontColor: '#fff',
+        fontFamily: 'Roboto',
+        assets: {
+          sky: 'assets/sky2.png',
+          ground: 'assets/platform.png',
+          star: 'assets/star.png',
+          bomb: 'assets/bomb.png'
+        }
+      });
+    }
+  }, [status, demo, stars]);
 
-  const onClick = () => {
-    onPlatformsChange(platforms+1)
-  };
 
   const onStart = () => {
+    onStatusChange('game');
     if (game) game.start();
   };
 
-  const onReload = () => {
-    if (game) console.log(game);
+  const onPrepare = () => {
+    onStatusChange('prepare')
   };
-
-
-
   return (
     <div>
-      <button onClick={onStart}>start</button>
-      <button onClick={onReload}>reload</button>
-      <button onClick={onClick}>add platforms</button>
-      <div>
-        <canvas ref={canvas}>
-        </canvas>
-      </div>
-      <input type="number" value={stars} onChange={event => onStarsChange(event.target.value)}/>
+      {status === 'greetings' ?
+        <div>
+          <div>Welcome to the game</div>
+          <div>You need to collect 600 points and don't touch any bombs</div>
+          <button onClick={onPrepare}>ok</button>
+          <button onClick={() => onDemoChange(true)}>DEMO</button>
+        </div>
+        : null}
+      {demo ?
+        <div>
+          <label> stars
+            <input type="number" max="26" min="1" value={stars} onChange={event => onStarsChange(event.target.value)}/>
+          </label>
+        </div> : null}
+      {['prepare', 'game'].includes(status) || demo ? <div>
+        {status === 'prepare' ? <div><button onClick={onStart}>start</button></div> : null}
+        <canvas ref={canvas} />
+        </div> : null}
+      {status === 'loose' && !demo ? <div>you are loose</div> : null}
+      {status === 'win' && !demo ? <div>you are win</div> : null}
     </div>
   )
 }

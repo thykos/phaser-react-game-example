@@ -1,19 +1,23 @@
 import Phaser from 'phaser';
 
-
 class Scene extends Phaser.Scene {
   constructor(props) {
     super(props);
-    this.onEnd = props.onEnd;
+    this.onLoose = props.onLoose;
+    this.onWin = props.onWin;
+    this.isEnd = false;
+    this.scoreToWin = props.scoreToWin;
     this.starsCount = props.stars;
+    this.scorePerStar = props.scorePerStar;
     this.assets = props.assets;
+    this.fontColor = props.fontColor;
+    this.fontFamily = props.fontFamily;
   }
 
   preload = function () {
-    this.load.image('sky', this.assets.sky);
-    this.load.image('ground', 'assets/platform.png');
-    this.load.image('star', 'assets/star.png');
-    this.load.image('bomb', 'assets/bomb.png');
+    Object.keys(this.assets).map(key => {
+      this.load.image(key, this.assets[key]);
+    });
     this.load.spritesheet('dude',
       'assets/dude.png',
       {frameWidth: 32, frameHeight: 48}
@@ -23,22 +27,16 @@ class Scene extends Phaser.Scene {
   create = function () {
     this.add.image(400, 300, 'sky');
 
-    //  The platforms group contains the ground and the 2 ledges we can jump on
     this.platforms = this.physics.add.staticGroup();
 
-    //  Here we create the ground.
-    //  Scale it to fit the width of the game (the original sprite is 400x32 in size)
     this.platforms.create(400, 568, 'ground').setScale(2).refreshBody();
 
-    //  Now let's create some ledges
     this.platforms.create(600, 400, 'ground');
     this.platforms.create(50, 250, 'ground');
     this.platforms.create(750, 220, 'ground');
 
-    // The player and its settings
     this.player = this.physics.add.sprite(100, 450, 'dude');
 
-    //  Player physics properties. Give the little guy a slight bounce.
     this.player.setBounce(0.2);
     this.player.setCollideWorldBounds(true);
 
@@ -66,37 +64,28 @@ class Scene extends Phaser.Scene {
     //  Input Events
     this.cursors = this.input.keyboard.createCursorKeys();
 
-    //  Some stars to collect, 12 in total, evenly spaced 70 pixels apart along the x axis
     this.stars = this.physics.add.group({
       key: 'star',
       repeat: this.starsCount - 1,
-      setXY: {x: this.starsCount + 1, y: 0, stepX: this.starsCount * 3}
+      setXY: {x: 20, y: 0, stepX: 30}
     });
 
     this.stars.children.iterate(function (child) {
-
-      //  Give each star a slightly different bounce
       child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
-
     });
 
     this.bombs = this.physics.add.group();
-
-    //  The score
-    this.scoreText = this.add.text(16, 16, 'score: 0', {fontSize: '32px', fill: '#000'});
-
-    //  Collide the player and the stars with the this.platforms
+    this.scoreText = this.add.text(16, 16, 'Score: 0', {fontSize: '32px', fill: this.fontColor, fontFamily: this.fontFamily});
     this.physics.add.collider(this.player, this.platforms);
     this.physics.add.collider(this.stars, this.platforms);
     this.physics.add.collider(this.bombs, this.platforms);
 
-    //  Checks to see if the player overlaps with any of the stars, if he does call the collectStar function
     this.physics.add.overlap(this.player, this.stars, this.collectStar, null, this);
-
     this.physics.add.collider(this.player, this.bombs, this.hitBomb, null, this);
   };
 
   update = function () {
+    if (this.isEnd) return;
 
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
@@ -130,21 +119,24 @@ class Scene extends Phaser.Scene {
 
     player.anims.play('turn');
 
-    this.onEnd();
+    this.isEnd = true;
+    this.onLoose();
   };
 
-  collectStar = function(player, star) {
+  collectStar = (player, star) => {
     star.disableBody(true, true);
 
-    //  Add and update the score
     this.score = this.score || 0;
-    this.score = this.score + 10;
+    this.score = this.score + this.scorePerStar;
     this.scoreText.setText('Score: ' + this.score);
 
-    if (this.stars.countActive(true) === 0) {
-      //  A new batch of stars to collect
-      this.stars.children.iterate(function (child) {
+    if (this.score >= this.scoreToWin) {
+      this.isEnd = true;
+      this.onWin();
+    }
 
+    if (this.stars.countActive(true) === 0) {
+      this.stars.children.iterate(function (child) {
         child.enableBody(true, child.x, 0, true, true);
 
       });
@@ -177,26 +169,15 @@ export default class Game {
       },
       ...props
     };
-    const scene = new Scene({
-      assets: {
-        sky: 'assets/sky.png'
-      },
-      stars: props.stars,
-      onEnd: props.onEnd
-    });
+    const scene = new Scene(props);
     this.game = new Phaser.Game(this.configs);
     this.game.scene.add('Game', scene);
+    if (props.demo) {
+      this.game.scene.start('Game');
+    }
   }
 
   start = () => {
     this.game.scene.start('Game');
-  };
-
-  reload = () => {
-    this.game.scene.restart();
-  };
-
-  update = () => {
-    console.log(this.game)
   };
 }
