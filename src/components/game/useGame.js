@@ -123,7 +123,7 @@ class Scene extends Phaser.Scene {
     this.onLoose();
   };
 
-  collectStar = (player, star) => {
+  collectStar = function (player, star) {
     star.disableBody(true, true);
 
     this.score = this.score || 0;
@@ -172,12 +172,6 @@ export default class Game {
     const scene = new Scene(props);
     this.game = new Phaser.Game(this.configs);
     this.game.scene.add('Game', scene);
-    if (props.demo) {
-      this.game.scene.start('Game');
-    }
-  }
-
-  start = () => {
     this.game.scene.start('Game');
-  };
+  }
 }
