@@ -6,6 +6,7 @@ class Scene extends Phaser.Scene {
     this.onLoose = props.onLoose;
     this.onWin = props.onWin;
     this.isEnd = false;
+    this.timerId = null;
     this.scoreToWin = props.scoreToWin;
     this.starsCount = props.stars;
     this.scorePerStar = props.scorePerStar;
@@ -22,6 +23,13 @@ class Scene extends Phaser.Scene {
       'assets/dude.png',
       {frameWidth: 32, frameHeight: 48}
     );
+  };
+
+  sendAnalytic = function() {
+    // here will be send analytics request
+    fetch('https://api.ipify.org?format=json', { method: 'get'})
+      .then((response) => response.json())
+      .then(response => console.log(response));
   };
 
   create = function () {
@@ -82,10 +90,16 @@ class Scene extends Phaser.Scene {
 
     this.physics.add.overlap(this.player, this.stars, this.collectStar, null, this);
     this.physics.add.collider(this.player, this.bombs, this.hitBomb, null, this);
+
+    this.timerId = setInterval(() => this.sendAnalytic(), 3000);
   };
 
   update = function () {
-    if (this.isEnd) return;
+
+    if (this.isEnd) {
+      clearInterval(this.timerId);
+      return;
+    }
 
     if (this.cursors.left.isDown) {
       this.player.setVelocityX(-160);
